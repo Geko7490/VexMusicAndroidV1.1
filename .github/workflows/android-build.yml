@@ -21,10 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,13 +31,41 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
-            platform-tools
+      - name: Detect Android SDK
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+
+          echo "Android SDK: $SDK_ROOT"
+          test -d "$SDK_ROOT"
+
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+
+          echo "Installed SDK tools:"
+          find "$SDK_ROOT/cmdline-tools" -name sdkmanager -type f
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          SDK_ROOT="$ANDROID_HOME"
+
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" \
+            -name sdkmanager -type f | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found!"
+            exit 1
+          fi
+
+          echo "Using: $SDKMANAGER"
+
+          yes | "$SDKMANAGER" \
+            --sdk_root="$SDK_ROOT" --licenses
+
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -68,7 +92,7 @@ jobs:
           test -f "$APK"
           ls -lh "$APK"
 
-      - name: Upload debug APK artifact
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: VEX-MUSIC-Android-Debug
@@ -76,7 +100,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload unit test report
+      - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
