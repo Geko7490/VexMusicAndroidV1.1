@@ -34,6 +34,8 @@ jobs:
       - name: Detect Android SDK
         shell: bash
         run: |
+          set -euo pipefail
+
           SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
 
           if [ ! -d "$SDK_ROOT" ]; then
@@ -106,25 +108,46 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Verify Gradle memory settings
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f gradle.properties ]; then
+            echo "gradle.properties not found!"
+            exit 1
+          fi
+
+          echo "Gradle memory configuration:"
+          grep -E '^(org.gradle.jvmargs|org.gradle.workers.max|kotlin.daemon.jvmargs)=' gradle.properties
+
+          echo "Available system memory:"
+          free -h
+
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Generate Gradle wrapper if missing
+        shell: bash
         run: |
+          set -euo pipefail
+
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
             gradle wrapper --gradle-version 8.7 --distribution-type bin
             chmod +x ./gradlew
           fi
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
+        run: ./gradlew testDebugUnitTest --stacktrace --no-daemon
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Verify APK exists
         shell: bash
         run: |
+          set -euo pipefail
+
           APK="app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
