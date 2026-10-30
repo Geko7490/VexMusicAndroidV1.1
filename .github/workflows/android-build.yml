@@ -64,7 +64,6 @@ jobs:
 
           echo "Using: $SDKMANAGER"
 
-          # Accept Android SDK licenses without the yes/Broken pipe issue.
           LICENSE_INPUT=$(mktemp)
           trap 'rm -f "$LICENSE_INPUT"' EXIT
 
@@ -76,7 +75,6 @@ jobs:
             --sdk_root="$SDK_ROOT" \
             --licenses < "$LICENSE_INPUT"
 
-          # Install required Android SDK packages.
           "$SDKMANAGER" \
             --sdk_root="$SDK_ROOT" \
             "platform-tools" \
@@ -86,9 +84,24 @@ jobs:
       - name: Verify Android SDK
         shell: bash
         run: |
-          sdkmanager --list_installed
+          set -euo pipefail
+
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -name sdkmanager -type f | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found!"
+            exit 1
+          fi
+
+          "$SDKMANAGER" \
+            --sdk_root="$ANDROID_HOME" \
+            --list_installed
+
           test -d "$ANDROID_HOME/platforms/android-34"
           test -d "$ANDROID_HOME/build-tools/34.0.0"
+
+          echo "Android SDK verification successful!"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
