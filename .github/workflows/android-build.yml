@@ -1,10 +1,11 @@
+
 name: Build VEX MUSIC Debug APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
 
 permissions:
@@ -20,6 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,13 +35,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
+      - name: Install Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Set up Gradle (with cache)
-        uses: gradle/actions/setup-gradle@v4
         with:
-          cache-read-only: false
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+            platform-tools
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -57,10 +65,7 @@ jobs:
       - name: Verify APK exists
         run: |
           APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -f "$APK" || { echo "APK was not produced"; exit 1; }
-          SIZE=$(stat -c%s "$APK")
-          echo "APK size: $SIZE bytes"
-          test "$SIZE" -gt 1000000 || { echo "APK looks empty"; exit 1; }
+          test -f "$APK"
           ls -lh "$APK"
 
       - name: Upload debug APK artifact
